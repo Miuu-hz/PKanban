@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "kanban": {
+      "command": "node",
+      "args": ["/path/to/mcp-kanban/dist/server.js"],
+      "env": {
+        "BFF_BASE_URL": "https://kanban.yourdomain.com/bff",
+        "BFF_TOKEN": "your-bff-access-token-from-liff-app"
+      }
+    }
+  }
+}
