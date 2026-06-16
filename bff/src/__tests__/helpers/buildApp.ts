@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
 import sensible from '@fastify/sensible';
 import jwt from '@fastify/jwt';
+import type { Pool } from 'pg';
 import { vi, type Mock } from 'vitest';
 import { authRoutes } from '../../routes/auth';
 import { orgRoutes } from '../../routes/org';
@@ -56,7 +57,7 @@ export async function buildTestApp(
 
   // Inject mock DB
   await app.register(fp(async (a) => {
-    a.decorate('db', db);
+    a.decorate('db', db as unknown as Pool);
   }));
 
   // Inject authenticate decorator (uses JWT plugin already registered above)

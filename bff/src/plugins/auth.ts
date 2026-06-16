@@ -8,11 +8,20 @@ export interface JwtPayload {
   orgIds: string[];
 }
 
+export interface RefreshPayload {
+  memberId: string;
+  type: 'refresh';
+}
+
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate: (req: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
-  interface FastifyRequest {
+}
+
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: JwtPayload | RefreshPayload;
     user: JwtPayload;
   }
 }

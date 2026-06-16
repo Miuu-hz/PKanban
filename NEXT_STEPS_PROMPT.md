@@ -16,55 +16,63 @@ You are assisting with a self-hosted Kanban + LINE Mini App project.
 - Docker files have been removed. The deployment guide is at infrastructure/proxmox-lxc-deployment.md.
 - Requirements checklist is at infrastructure/REQUIREMENTS.md.
 
-## Current Status
+## Current Status (Updated)
 - Docker removed: bff/Dockerfile and infrastructure/docker-compose.yml deleted.
-- Deployment model changed to Proxmox + LXC with 4 containers:
+- Deployment model: Proxmox + LXC with 4 containers:
   - kanban-db (10.0.10.10): PostgreSQL 16 + Redis 7
   - kanban-planka (10.0.10.11): Planka Kanban server
-  - kanban-bff (10.0.10.12): BFF + MCP server
-  - kanban-proxy (10.0.10.13): Nginx + static LIFF files
+  - kanban-bff (LXC 105): BFF + MCP server code cloned, Node.js 20.20.2 installed, npm install done, bff/dist/ built (tsc bypass)
+  - kanban-proxy (LXC 106): Nginx + static LIFF files; liff-app/dist/ built on LXC 105 and pushed to /var/www/kanban/dist/ on LXC 106
 - .env files created and populated:
   - infrastructure/.env
   - bff/.env
   - liff-app/.env
-- Domain chosen: kanban.phopy.net
+- Domain configured on Cloudflare: kanban.phopy.net
 - LINE channels configured:
   - LINE Login channel ID: 2010398551
   - Messaging API channel ID: 2010398526
   - LINE MINI App channel ID: 2010398344
   - LIFF ID (Developing): 2010398344-kGt5zcKv
 
-## What is in progress
-- The user is currently setting up the DNS subdomain kanban.phopy.net.
-- It is not yet pointing to the Proxmox/public server IP.
+## Known Issues
+- Liff-app .env exists only inside containers and is NOT committed (correct policy).
+- BFF TypeScript build errors were fixed (see git diff for details).
 
-## What still needs to be done
-1. Wait for DNS A record kanban.phopy.net → public IP to propagate.
-2. Configure LINE Developers Console:
+## What is in progress / Next immediate steps
+1. Configure Nginx on LXC 106 (kanban-proxy) with SSL and reverse proxy rules.
+2. Set up BFF .env + systemd service on LXC 105 (kanban-bff).
+3. (After BFF runs) Verify /health endpoint and test LINE Login flow.
+
+## Remaining Steps
+1. Configure Nginx on kanban-proxy (LXC 106):
+   - Use infrastructure/nginx/conf.d/app.conf as template
+   - Replace placeholders with actual domain and LXC IPs
+   - Set up SSL with certbot: certbot --nginx -d kanban.phopy.net
+   - Test: curl -I https://kanban.phopy.net
+2. Set up BFF environment and service on kanban-bff (LXC 105):
+   - Copy bff/.env to LXC 105 /opt/kanban/bff/.env
+   - Create systemd service /etc/systemd/system/kanban-bff.service
+   - Enable and start: systemctl enable --now kanban-bff
+   - Verify: curl http://10.0.10.12:3000/health
+3. Configure LINE Developers Console:
    - LINE MINI App → Web app settings → Endpoint URL: https://kanban.phopy.net/app/
    - LINE Login → Callback URL: https://kanban.phopy.net/auth/line/callback
    - Messaging API → Webhook URL (optional): https://kanban.phopy.net/bff/webhooks/line
-3. Provision 4 LXC containers on Proxmox with Ubuntu 24.04.
-4. Install software per infrastructure/proxmox-lxc-deployment.md:
-   - kanban-db: PostgreSQL 16 + Redis 7
-   - kanban-planka: Node.js 20 + Planka from git
-   - kanban-bff: Node.js 20 + project bff/ code
-   - kanban-proxy: Nginx + Certbot + built liff-app/dist/
-5. Copy .env files to the appropriate LXCs.
-6. Run database migrations on kanban-bff: npm run migrate
-7. Obtain SSL certificate: certbot --nginx -d kanban.phopy.net
-8. Verify endpoints:
-   - curl http://10.0.10.11:1337 (Planka)
-   - curl http://10.0.10.12:3000/health (BFF)
-   - curl -I https://kanban.phopy.net (Nginx + SSL)
-9. Set up daily backup cron on kanban-db: 0 2 * * * /opt/kanban/scripts/backup.sh
+4. ~~Fix BFF TypeScript errors~~ ✅ DONE:
+   - req.user.memberId type fixed via @fastify/jwt module augmentation
+   - Tests pass: 69/69
+5. Set up daily backup cron on kanban-db: 0 2 * * * /opt/kanban/scripts/backup.sh
+6. End-to-end test:
+   - Open LIFF app on LINE
+   - Login with LINE
+   - Test Kanban board loading
+   - Test card CRUD operations
 
 ## Important Notes
 - DO NOT commit .env files. They contain secrets.
 - Secrets were generated with openssl rand and are stored in the .env files.
-- The user has the public IP of the Proxmox server but it has not been shared yet.
-- If the user shares the public IP, update DNS A record instructions accordingly.
-- If the user wants to proceed before DNS is ready, they can still set up LXCs internally but LINE integration will not work until HTTPS domain is reachable.
+- LXC 105 has more RAM and is used for building the frontend because LXC 106 (512MB) is not enough.
+- If the user shares new public IP or changes DNS, update Nginx and .env accordingly.
 
 ## Current Files of Interest
 - infrastructure/proxmox-lxc-deployment.md : Full deployment guide
@@ -72,6 +80,7 @@ You are assisting with a self-hosted Kanban + LINE Mini App project.
 - infrastructure/.env, bff/.env, liff-app/.env : Environment variables
 - infrastructure/nginx/conf.d/app.conf : Nginx virtual host config
 - infrastructure/scripts/backup.sh : PostgreSQL backup script
+- NEXT_STEPS_PROMPT.md : This file
 ```
 
 ---
