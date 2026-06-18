@@ -10,6 +10,7 @@ ExecStart=/usr/bin/node dist/server.js
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
+EnvironmentFile=/opt/kanban/bff/.env
 
 [Install]
 WantedBy=multi-user.target

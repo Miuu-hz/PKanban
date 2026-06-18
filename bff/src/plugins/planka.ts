@@ -21,7 +21,45 @@ export const plankaPlugin = fp(async (app: FastifyInstance) => {
   let token = '';
   let tokenExpiry = 0;
 
-  async function login() {
+  async function setToken(data: { item: string }) {
+    token = data.item;
+    tokenExpiry = Date.now() + 23 * 60 * 60 * 1000; // 23h (Planka token lasts 1 day)
+  }
+
+  async function acceptTerms(): Promise<void> {
+    // Try common Planka endpoints for accepting terms. The exact endpoint
+    // varies by version, so we attempt the most likely ones.
+    const endpoints = [
+      `${baseUrl}/api/users/accept-terms`,
+      `${baseUrl}/api/access-tokens/accept-terms`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            emailOrUsername: process.env.PLANKA_ADMIN_EMAIL,
+            password: process.env.PLANKA_ADMIN_PASSWORD,
+          }),
+        });
+        if (res.ok || res.status === 204) {
+          app.log.info(`Planka terms accepted via ${url}`);
+          return;
+        }
+      } catch (err) {
+        app.log.debug({ err, url }, 'Terms accept attempt failed');
+      }
+    }
+
+    throw new Error(
+      'Planka requires accepting Terms of Service, but automatic acceptance failed. ' +
+        'Please log in to the Planka web UI once and accept the terms manually.',
+    );
+  }
+
+  async function login(attempt = 1): Promise<void> {
     const res = await fetch(`${baseUrl}/api/access-tokens`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,10 +68,28 @@ export const plankaPlugin = fp(async (app: FastifyInstance) => {
         password: process.env.PLANKA_ADMIN_PASSWORD,
       }),
     });
-    if (!res.ok) throw new Error(`Planka login failed: ${res.status}`);
-    const data = (await res.json()) as { item: string };
-    token = data.item;
-    tokenExpiry = Date.now() + 23 * 60 * 60 * 1000; // 23h (Planka token lasts 1 day)
+
+    if (res.ok) {
+      const data = (await res.json()) as { item: string };
+      await setToken(data);
+      return;
+    }
+
+    const status = res.status;
+    const body = await res.text().catch(() => '');
+
+    // Some Planka versions require accepting the End User Terms before login.
+    if (
+      attempt === 1 &&
+      (status === 400 || status === 401 || status === 403) &&
+      /terms|accept|eula/i.test(body)
+    ) {
+      app.log.info('Planka login blocked by terms; auto-accepting...');
+      await acceptTerms();
+      return login(attempt + 1);
+    }
+
+    throw new Error(`Planka login failed: ${status} ${body}`);
   }
 
   async function headers() {

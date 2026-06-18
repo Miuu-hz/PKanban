@@ -18,6 +18,11 @@ You are assisting with a self-hosted Kanban + LINE Mini App project.
 
 ## Current Status (Updated)
 - Docker removed: bff/Dockerfile and infrastructure/docker-compose.yml deleted.
+- 🔴 Priority fixes in GitHub repo completed:
+  - nginx.conf: changed `user nginx;` → `user www-data;`
+  - nginx/conf.d/app.conf: fixed `/bff/calendar/` proxy_pass to strip `/bff` prefix
+  - bff/src/plugins/planka.ts: added auto accept-terms retry on Planka login
+  - infrastructure/lxc-105-kanban-bff.service: added `EnvironmentFile=/opt/kanban/bff/.env`
 - Deployment model: Proxmox + LXC with 4 containers:
   - kanban-db (10.0.10.10): PostgreSQL 16 + Redis 7
   - kanban-planka (10.0.10.11): Planka Kanban server
@@ -39,9 +44,10 @@ You are assisting with a self-hosted Kanban + LINE Mini App project.
 - BFF TypeScript build errors were fixed (see git diff for details).
 
 ## What is in progress / Next immediate steps
-1. Configure Nginx on LXC 106 (kanban-proxy) with SSL and reverse proxy rules.
-2. Set up BFF .env + systemd service on LXC 105 (kanban-bff).
-3. (After BFF runs) Verify /health endpoint and test LINE Login flow.
+1. Pull latest code from GitHub repo to LXCs 105 and 106.
+2. Configure Nginx on LXC 106 (kanban-proxy) with SSL and reverse proxy rules.
+3. Set up BFF .env + systemd service on LXC 105 (kanban-bff).
+4. (After BFF runs) Verify /health endpoint and test LINE Login flow.
 
 ## Remaining Steps
 1. Configure Nginx on kanban-proxy (LXC 106):
